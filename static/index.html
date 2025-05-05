@@ -1,8 +1,491 @@
 <html>
     <head>
         <script src="https://d3js.org/d3.v7.min.js"></script>
+
+        <style>
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            form {
+                display: flex;
+                flex-direction: column;
+                width: 600px;
+                font-size: 20px;
+            }
+
+            form input {
+                width: 200px;
+                font-size: 20px;
+            }
+
+            form button {
+                width: 300px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+
+            form label {
+                margin-top: 20px;
+            }
+
+            form .specific_section {
+                margin-top: 20px;
+            }
+
+            form .specific_section label {
+                margin-top: 20px;
+            }
+
+            form .specific_section select {
+                font-size: 20px;
+            }
+        </style>
     </head>
     <body>
-        <h1>THIS IS WORKING</h1>
+        <h1>Do you drive from LI to NYC for work? Consider the risks and costs of your commute.</h1>
+        <h3>Enter your details for a personalized report:</h3>
+        <form id="form">
+            <label for="dpw">How many days per week do you commute to the city?</label>
+            <input type="number" id="dpw" name="dpw" min="1" max="7">
+
+            <label for="start_commute">What time do you leave for work?</label>
+            <input type="time" id="start_commute" name="start_commute" step="3600">
+
+            <label for="end_commute">What time do you go home from work?</label>
+            <input type="time" id="end_commute" name="end_commute" step="3600">
+
+            <div class="specific_section" id="vehicle_info"></div>
+
+            <div class="specific_section" id="lirr"></div>
+            
+            <div class="specific_section" id="error_message"></div>
+
+            <button class="specific_section" type="button" id="submit" name="submit">See Your Report</button>
+        </form>
+
+        <div id="safety"></div>
+
+        <div id="cost"></div>
+
+        <script>
+            // Form-related
+            const form = d3.select("#form");
+            const vehicle_info_form = d3.select("#form #vehicle_info");
+            const lirr_form = d3.select("#form #lirr");
+
+            const lirrZones = {
+                1: ['Atlantic Terminal', 'Nostrand Avenue', 'East New York', 'Long Island City', 'Hunterspoint Avenue', 'Forest Hills', 'Woodside', 'Kew Gardens', 'Penn Station', 'Grand Central', 'Mets-Willets Point'], 
+                3: ['Jamaica', 'Locust Manor', 'Laurelton', 'Rosedale', 'St. Albans', 'Hollis', 'Queens Village', 'Flushing', 'Murray Hill', 'Broadway', 'Auburndale', 'Bayside', 'Douglaston', 'Little Neck'], 
+                4: ['Gibson', 'Hewlett', 'Woodmere', 'Cedarhurst', 'Lawrence', 'Inwood', 'Far Rockaway', 'Lynbrook', 'West Hempstead', 'Valley Stream', 'Westwood', 'Malverne', 'Lakeview', 'Hempstead Gardens', 'Belmont Park', 'Stewart Manor', 'Nassau Boulevard', 'Garden City', 'County Life Press', 'Hempstead', 'Elmont-UBS', 'Bellerose', 'Floral Park', 'New Hyde Park', 'Merillon Avenue', 'Mineola', 'East Williston', 'Great Neck', 'Manhasset', 'Plandome', 'Port Washington'], 
+                7: ['Centre Avenue', 'East Rockaway', 'Oceanside', 'Island Park', 'Long Beach', 'Rockville Centre', 'Baldwin', 'Freeport', 'Merrick', 'Bellmore', 'Wantagh', 'Seaford', 'Massapequa', 'Massapequa Park', 'Carle Place', 'Westbury', 'Bethpage', 'Farmingdale', 'Hicksville', 'Syosset', 'Albertson', 'Roslyn', 'Greenvale', 'Glen Head', 'Sea Cliff', 'Glen Street', 'Glen Cove', 'Locust Valley', 'Oyster Bay'], 
+                9: ['Amityville', 'Copiague', 'Lindenhurst', 'Babylon', 'Pinelawn', 'Wyandanch', 'Deer Park', 'Cold Spring Harbor', 'Huntington', 'Greenlawn', 'Northport'], 
+                10: ['Bay Shore', 'Islip', 'Great River', 'Oakdale', 'Sayville', 'Patchogue', 'Brentwood', 'Central Islip', 'Ronkonkoma', 'Medford', 'Kings Park', 'Smithtown', 'St. James', 'Stony Brook', 'Port Jefferson'], 
+                12: ['Bellport', 'Mastic-Shirley', 'Speonk', 'Yaphank'], 
+                14: ['Westhampton', 'Hampton Bays', 'Southampton', 'Bridgehampton', 'East Hamption', 'Amagansett', 'Montauk', 'Riverhead', 'Mattituck', 'Southold', 'Greenport']
+            }
+
+            const lirrZones_reversed = {}
+
+            for (const [zone, stations] of Object.entries(lirrZones)) {
+                stations.forEach(station => {
+                    lirrZones_reversed[station] = parseInt(zone);
+                });
+            }
+
+            // FOR TESTING PURPOSES - NEED TO MANUALLY ENTER DISTANCES
+            const stationDistanceTEMPORARY = {};
+
+            for (const [zone, stations] of Object.entries(lirrZones)) {
+                stations.forEach(station => {
+                    stationDistanceTEMPORARY[station] = 5 * parseInt(zone);
+                });
+            }
+
+            console.log(stationDistanceTEMPORARY);
+
+            const zoneToCityFares = {
+                1: {'Monthly': 165.00, 'Weekly': 65.00, 'Ten-Trip Peak': 92.50, 'Ten-Trip Off-Peak': 57.50, 'One-Way Peak': 9.25, 'One-Way Off-Peak': 6.75}, 
+                3: {'Monthly': 198.00, 'Weekly': 78.25, 'Ten-Trip Peak': 112.50, 'Ten-Trip Off-Peak': 70.25, 'One-Way Peak': 11.25, 'One-Way Off-Peak': 8.25}, 
+                4: {'Monthly': 253.00, 'Weekly': 90.00, 'Ten-Trip Peak': 130.00, 'Ten-Trip Off-Peak': 83.00, 'One-Way Peak': 13.00, 'One-Way Off-Peak': 9.75}, 
+                7: {'Monthly': 287.00, 'Weekly': 102.00, 'Ten-Trip Peak': 145.00, 'Ten-Trip Off-Peak': 91.50, 'One-Way Peak': 14.50, 'One-Way Off-Peak': 10.75}, 
+                9: {'Monthly': 341.00, 'Weekly': 121.25, 'Ten-Trip Peak':175.00, 'Ten-Trip Off-Peak': 110.50, 'One-Way Peak': 17.50, 'One-Way Off-Peak': 13.00}, 
+                10: {'Monthly': 378.00, 'Weekly': 134.50, 'Ten-Trip Peak': 205.00, 'Ten-Trip Off-Peak': 129.75, 'One-Way Peak': 20.50, 'One-Way Off-Peak': 15.25}, 
+                12: {'Monthly': 433.00, 'Weekly': 154.00, 'Ten-Trip Peak': 245.00, 'Ten-Trip Off-Peak': 155.25, 'One-Way Peak': 24.50, 'One-Way Off-Peak': 18.25}, 
+                14: {'Monthly': 468.00, 'Weekly': 166.25, 'Ten-Trip Peak': 317.50, 'Ten-Trip Off-Peak': 199.75, 'One-Way Peak': 31.75, 'One-Way Off-Peak': 23.50}
+            }
+
+            // Risk-related
+            const safety_visualizations = d3.select("#safety");
+
+            // Cost-related
+            const cost_visualizations = d3.select("#cost");
+
+            const requestData = async () => {
+
+                // Get accident datasets 
+                let collisions_crashes = await d3.csv("Motor_Vehicle_Collisions_-_Crashes (1).csv");
+
+                collisions_crashes.forEach(d => {
+                    d["CRASH DATE"] = new Date(`${d["CRASH DATE"]} ${d["CRASH TIME"]}`);
+                });
+
+                collisions_crashes = collisions_crashes.filter(d => d["CRASH DATE"].getFullYear() === 2024);
+
+                // Populate the form with make and model values
+                const gasMileage = await d3.csv("vehicles.csv");
+
+                const lookup = {};
+
+                gasMileage.forEach(d => {
+                    const year = d.year;
+                    const make = d.make;
+                    const model = d.baseModel;
+                    const mpg = d.comb08;
+
+                    if (!lookup[year]) {
+                        lookup[year] = {};
+                    }
+
+                    if (!lookup[year][make]) {
+                        lookup[year][make] = {};
+                    }
+
+                    const mpgValue = parseFloat(mpg);
+                    
+                    if (!lookup[year][make][model]) {
+                        lookup[year][make][model] = [];
+                    }
+                    lookup[year][make][model].push(mpgValue);
+                });
+
+                // Get all LIRR station names
+                const allStations = Object.values(lirrZones).flat().sort();
+
+                lirr_form.append("label").attr("for", "lirr_station").text("Nearest LIRR Station:");
+
+                lirr_form.append("select").attr("id", "lirr_station").attr("name", "lirr_station");
+
+                const lirr_station_select = d3.select("#lirr_station");
+
+                lirr_station_select.append("option")
+                                    .attr("value", "")
+                                    .text("Select Station");
+
+                allStations.forEach(d => {
+                    lirr_station_select.append("option")
+                                    .attr("value", d)
+                                    .text(d);
+                });
+
+                // Car lookup form generation
+                const years = Array.from(new Set(gasMileage.map(d => d.year))).sort((a, b) => b - a);
+
+                vehicle_info_form.append("label").attr("for", "car_year").text("Vehicle year:");
+
+                vehicle_info_form.append("select").attr("id", "car_year").attr("name", "car_year");
+
+                const car_year_select = d3.select("#car_year");
+
+                car_year_select.append("option")
+                                    .attr("value", "")
+                                    .text("Select Year");
+
+                years.forEach(d => {
+                    // <option value="dog">Dog</option>
+                    car_year_select.append("option")
+                                    .attr("value", parseInt(d))
+                                    .text(d);
+                });
+
+                car_year_select.on("change", function() {
+                    const selectedYear = d3.select(this).property("value");
+
+                    d3.select("#car_model_label").remove();
+                    d3.select("#car_model").remove();
+
+                    d3.select("#car_make_label").remove();
+                    d3.select("#car_make").remove();
+
+                    if (selectedYear) {
+
+                        vehicle_info_form.append("label").attr("for", "car_make").attr("id", "car_make_label").text("\nVehicle Make:")
+                        vehicle_info_form.append("select").attr("id", "car_make").attr("name", "car_make");
+
+                        const car_make_select = d3.select("#car_make");
+
+                        car_make_select.append("option")
+                                        .attr("value", "")
+                                        .text("Select Make");
+
+                        Object.keys(lookup[selectedYear]).sort().forEach(d => {
+                            car_make_select.append("option")
+                                            .attr("value", d)
+                                            .text(d);
+                        });
+
+                        car_make_select.on("change", function() {
+                            const selectedMake = d3.select(this).property("value");
+
+                            d3.select("#car_model_label").remove();
+                            d3.select("#car_model").remove();
+
+                            if (selectedMake) {
+                                vehicle_info_form.append("label").attr("for", "car_model").attr("id", "car_model_label").text("\nVehicle Model:")
+                                vehicle_info_form.append("select").attr("id", "car_model").attr("name", "car_model");
+
+                                const car_model_select = d3.select("#car_model");
+
+                                car_model_select.append("option")
+                                        .attr("value", "")
+                                        .text("Select Model");
+
+                                Object.keys(lookup[selectedYear][selectedMake]).sort().forEach(j => {
+                                    car_model_select.append("option")
+                                            .attr("value", j)
+                                            .text(j);
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // REPORT GENERATION FUNCTIONS
+                function cost_section (responses) {
+                    safety_visualizations.html("");
+                    console.log(responses);
+
+                    // const responses = {
+                    //     "dpw_response": dpw_response, 
+                    //         "start_commute_response": start_commute_response, 
+                    //         "end_commute_response": end_commute_response, 
+                    //         "car_year_response": car_year_response, 
+                    //         "car_make_response": car_make_response, 
+                    //         "car_model_response": car_model_response, 
+                    //         "lirr_response": lirr_response
+                    //     }
+
+                    // Car usage cost calculation
+                    let gas_mileage = lookup[responses["car_year_response"]][responses["car_make_response"]][responses["car_model_response"]][0];
+
+                    let work_distance = stationDistanceTEMPORARY[responses['lirr_response']];
+
+                    const avg_gas_price = 3.30;
+
+                    let gas_spending_year = ((work_distance*responses['dpw_response']*2)/gas_mileage)*avg_gas_price*52;
+
+                    let parking_spending_year = Math.min(570*12, responses['dpw_response']*20*52);
+
+                    let total_car_spend_yearly = gas_spending_year + parking_spending_year + (6.94*responses['dpw_response']*52);
+
+                    safety_visualizations.append('h3').text('In 2024, commuting in your '+ responses["car_year_response"] + ' ' + responses["car_make_response"] + ' ' + responses["car_model_response"] + " costed $" + total_car_spend_yearly.toLocaleString())
+
+                    // Alternate public transportation cost calculation
+                    let days_per_month = responses['dpw_response']*4
+
+                    let lirr_zone = lirrZones_reversed[responses['lirr_response']];
+
+                    let train_spending_monthly = Math.min(zoneToCityFares[lirr_zone]['Monthly'], zoneToCityFares[lirr_zone]['One-Way Peak']*days_per_month);
+
+                    const subway_fare = 2.90;
+
+                    let train_cost_yearly = train_spending_monthly*12 + (subway_fare*2*days_per_month*12);
+
+                    safety_visualizations.append('h3').text('However, using public transportation, that commute could have costed you $' + train_cost_yearly.toLocaleString());
+
+
+                }
+
+                function safety_section (responses) {
+
+                    // Clear out in case user is redoing the form
+                    safety_visualizations.html("");
+
+                    // Bar graph that depicts accidents by time of day, and highlights times selected by user
+                    safety_visualizations.append("h2").text("NYC Car Accidents 2024 by Time of Day");
+
+                    const accident_bar_svg = safety_visualizations.append("svg")
+                                                                  .attr("id", "accident_bar")
+                                                                  .attr("width", "900")
+                                                                  .attr("height", "500");
+
+                    const barwidth = accident_bar_svg.attr("width");
+                    const barheight = accident_bar_svg.attr("height");
+                    const margin = {top: 10, right: 15, bottom: 30, left: 50};
+                    const chartWidth = barwidth - margin.left - margin.right;
+                    const chartHeight = barheight - margin.top - margin.bottom;
+
+                    const hours = collisions_crashes.map(d => d["CRASH DATE"].getHours());
+
+                    var accident_histogram = d3.histogram()
+                                               .domain([0, 24])
+                                               .thresholds(d3.range(0, 25));
+
+                    const time_bins = accident_histogram(hours);
+
+                    const timeScale = d3.scaleLinear()
+                                        .domain([0, 24])
+                                        .range([0, chartWidth]);
+
+                    var accident_countScale = d3.scaleLinear()
+                                                .domain([0, d3.max(time_bins,d => d.length)])
+                                                .range([chartHeight, 0]);
+
+                    const accidentBarArea = accident_bar_svg.append("g")
+                                    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+                    accident_bar_svg.append("g")
+                        .attr("class", "x axis")
+                        .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
+                        .call(d3.axisBottom(timeScale).tickFormat(d => `${d}:00`));
+
+                    accident_bar_svg.append("g")
+                        .attr("transform",`translate(${margin.left},${margin.top})`)
+                        .call(d3.axisLeft(accident_countScale));
+
+
+                    const accident_bars = accidentBarArea.selectAll("rect")
+                                    .data(time_bins)
+                                    .enter()
+                                    .append("rect")
+                                    .attr("x", d => timeScale(d.x0))
+                                    .attr("y", d => accident_countScale(d.length))
+                                    .attr("width", d => timeScale(d.x1) - timeScale(d.x0))
+                                    .attr("height", d => chartHeight - accident_countScale(d.length))
+                                    .style("fill", "#807e7e");
+
+
+                    const go_hour = parseInt(responses.start_commute_response.split(":")[0]);
+                    const leave_hour = parseInt(responses.end_commute_response.split(":")[0]);
+
+                    const highlight_start = timeScale(go_hour);
+                    const highlight_end = timeScale(leave_hour);
+
+                    accidentBarArea.append("rect")
+                                    .attr("x", highlight_start)
+                                    .attr("y", 0)
+                                    .attr("width", timeScale(highlight_start+1) - timeScale(highlight_start))
+                                    .attr("height", chartHeight)
+                                    .style("fill", "red")
+                                    .style("opacity", 0.3);
+
+                    accidentBarArea.append("rect")
+                                    .attr("x", highlight_end)
+                                    .attr("y", 0)
+                                    .attr("width", timeScale(highlight_end+1) - timeScale(highlight_end))
+                                    .attr("height", chartHeight)
+                                    .style("fill", "red")
+                                    .style("opacity", 0.3);
+
+                    // Value box that shows the percentage of accidents that happen during user's commute
+                    let hours_overlap = hours.filter(d => d === go_hour || d === leave_hour);
+
+                    let percentage_overlap = (hours_overlap.length / hours.length)*100
+
+                    safety_visualizations.append("p").text("In 2024, about "+percentage_overlap+"% of car accidents in NYC occurred during your commute.");
+
+                    // Value box that shows the total number of accidents in 2024 during their commute time
+                    safety_visualizations.append("p").text("In 2024, around "+hours_overlap.length+" car accidents in NYC occurred during the times of your commute.");
+
+                    // Paragraph explaining general safety stuff
+
+                    const next_to_costs = safety_visualizations.append("button")
+                                         .text("Next Section")
+                                         .on("click", function() {
+                                            cost_section(responses);
+                                         });
+                }
+
+                
+
+
+                // Submit button action
+                const submit_button = d3.select("#form #submit");
+
+                // select other form elements
+                const dpw_select = d3.select("#dpw");
+                const start_commute_select = d3.select("#start_commute");
+                const end_commute_select = d3.select("#end_commute");
+
+                const error_message = d3.select("#form #error_message");
+
+                submit_button.on("click", function() {
+
+                    error_message.selectAll("p").remove();
+
+                    let errors_list = [];
+
+                    // Get all values from the form
+                    const dpw_response = dpw_select.property("value");
+                    if (dpw_response == "") {
+                        errors_list.push("Days Per Week Commuting");
+                    }
+
+                    const start_commute_response = start_commute_select.property("value");
+                    if (start_commute_response == "") {
+                        errors_list.push("Commute to Work Start Time");
+                    }
+
+                    const end_commute_response = end_commute_select.property("value");
+                    if (end_commute_response == "") {
+                        errors_list.push("Commute Home Start Time");
+                    }
+
+                    const car_year_response = car_year_select.property("value");
+                    if (car_year_response == "") {
+                        errors_list.push("Vehicle Year");
+                    }
+
+                    let car_make_response = null;
+                    if (!d3.select("#car_make").empty()) {
+                        car_make_response = d3.select("#car_make").property("value");
+                    }
+                    if (car_make_response == "" || car_make_response == null) {
+                        errors_list.push("Vehicle Make");
+                    }
+
+                    let car_model_response = null;
+                    if (!d3.select("#car_model").empty()) {
+                        car_model_response = d3.select("#car_model").property("value");
+                    }
+                    if (car_model_response == "" || car_model_response == null) {
+                        errors_list.push("Vehicle Model");
+                    }
+
+                    const lirr_response = lirr_station_select.property("value");
+                    if (lirr_response == "") {
+                        errors_list.push("Nearest LIRR Station");
+                    }
+
+                    // If any are null, display message
+                    // Otherwise, run the graph generation
+
+                    if (errors_list.length > 0) {
+                        error_message.append("p")
+                                     .text("Please fill out the following fields: " + errors_list.join(", "));
+                    }
+                    else {
+                        const responses = {
+                            "dpw_response": dpw_response, 
+                            "start_commute_response": start_commute_response, 
+                            "end_commute_response": end_commute_response, 
+                            "car_year_response": car_year_response, 
+                            "car_make_response": car_make_response, 
+                            "car_model_response": car_model_response, 
+                            "lirr_response": lirr_response
+                        }
+                        safety_section(responses);
+                    }
+                });
+
+
+
+
+            }
+            requestData();
+        </script>
     </body>
 </html>
