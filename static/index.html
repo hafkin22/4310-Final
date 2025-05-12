@@ -1,35 +1,75 @@
 <html>
     <head>
         <script src="https://d3js.org/d3.v7.min.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
 
         <style>
             body {
-                font-family: Arial, Helvetica, sans-serif;
+                font-family: "Space Grotesk", sans-serif;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                margin: 0px;
+            }
+
+            .title_header {
+                width: 100%;
+                text-align: center;
+                color: white;
+                background-color: #0136a8;
             }
 
             form {
                 display: flex;
                 flex-direction: column;
-                width: 600px;
+                width: 800px;
                 font-size: 20px;
+                font-family: "Space Grotesk", sans-serif;
             }
 
             form input {
-                width: 200px;
+                width: 150px;
                 font-size: 20px;
+                font-family: "Space Grotesk", sans-serif;
             }
 
             form button {
                 width: 300px;
                 font-size: 20px;
                 font-weight: bold;
+                font-family: "Space Grotesk", sans-serif;
             }
 
             form label {
                 margin-top: 20px;
+            }
+
+            form .form_section {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                margin-top: 15px;
+            }
+
+            form .form_section label {
+                margin-top: 0px;
+                font-size: 20px;
+            }
+
+            form .form_section select {
+                margin-top: 0px;
+                margin-left: 5px;
+                font-size: 20px;
+                font-family: "Space Grotesk", sans-serif;
+            }
+
+            form .form_section input {
+                margin-top: 0px;
+                margin-left: 5px;
+                font-size: 20px;
             }
 
             form .specific_section {
@@ -70,6 +110,12 @@
                 padding: 10px;
                 border-radius: 4px;
                 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            }
+
+            .safety svg {
+                border-radius: 4px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                padding: 5px;
             }
 
             .cost_component_div img {
@@ -131,7 +177,10 @@
         </style>
     </head>
     <body id="body">
-        <h1>Do you drive from LI to NYC for work? Consider the risks and costs of your commute.</h1>
+
+        <header class="title_header">
+            <h1>Do you drive from LI to NYC for work? Consider the risks and costs of your commute.</h1>
+        </header>
 
         <script>
             const body = d3.select("#body");
@@ -632,32 +681,41 @@
                 function generate_form() {
                     body.selectAll('div').remove();
 
+                    const intro_photos = body.append('div').attr('class', 'form_section');
+                    intro_photos.append('img').attr('src', 'images/midtown-tunnel.jpg').style('height', '460px');
+                    intro_photos.append('img').attr('src', 'images/lirr.jpg').style('height', '460px');
+
                     body.append('h3').attr('id', 'form_header').text("Enter your details for a personalized report:");
 
-                    const form = body.append('form').attr('id', 'form');
+                    const form = body.append('form').attr('id', 'form').attr('class', 'form');
 
-                    form.append("label").attr("for", "dpw").text("How many days per week do you commute to the city?");
-                    form.append("input").attr("type", "number").attr("id", "dpw").attr("name", "dpw").attr("min", "1").attr("max", "7");
+                    const dpw_section = form.append('div').attr('class', 'form_section');
+                    dpw_section.append("label").attr("for", "dpw").text("How many days per week do you commute to the city?");
+                    dpw_section.append("input").attr("type", "number").attr("id", "dpw").attr("name", "dpw").attr("min", "1").attr("max", "7");
 
-                    form.append("label").attr("for", "start_commute").text("What time do you leave for work?");
-                    form.append("input").attr("type", "time").attr("id", "start_commute").attr("name", "start_commute").attr("step", "3600");
+                    const start_commute_section = form.append('div').attr('class', 'form_section');
+                    start_commute_section.append("label").attr("for", "start_commute").text("What time do you leave for work?");
+                    start_commute_section.append("input").attr("type", "time").attr("id", "start_commute").attr("name", "start_commute").attr("step", "3600");
 
-                    form.append("label").attr("for", "end_commute").text("What time do you go home from work?");
-                    form.append("input").attr("type", "time").attr("id", "end_commute").attr("name", "end_commute").attr("step", "3600");
+                    const end_commute_section = form.append('div').attr('class', 'form_section');
+                    end_commute_section.append("label").attr("for", "end_commute").text("What time do you go home from work?");
+                    end_commute_section.append("input").attr("type", "time").attr("id", "end_commute").attr("name", "end_commute").attr("step", "3600");
 
 
                     // Form selections
 
-                    const vehicle_info_form = form.append("div").attr("id", "vehicle_info").attr("class", "specific_section");
+                    const vehicle_info_form = form.append("div").attr("id", "vehicle_info").attr("class", "form_category_section");
 
-                    const lirr_form = form.append("div").attr("id", "lirr").attr("class", "specific_section");
+                    const lirr_form = form.append("div").attr("id", "lirr").attr("class", "form_section");
 
-                    const error_message = form.append("div").attr("id", "error_message").attr("class", "specific_section");
+                    const error_message = form.append("div").attr("id", "error_message").attr("class", "form_category_section");
 
                     // Car lookup form generation
-                    vehicle_info_form.append("label").attr("for", "car_year").text("Vehicle year:");
+                    const vehicle_year_section = vehicle_info_form.append('div').attr('class', 'form_section');
 
-                    vehicle_info_form.append("select").attr("id", "car_year").attr("name", "car_year");
+                    vehicle_year_section.append("label").attr("for", "car_year").text("Vehicle year:");
+
+                    vehicle_year_section.append("select").attr("id", "car_year").attr("name", "car_year");
 
                     const car_year_select = d3.select("#car_year");
 
@@ -681,9 +739,10 @@
                         d3.select("#car_make").remove();
 
                         if (selectedYear) {
+                            const vehicle_make_section = vehicle_info_form.append('div').attr('class', 'form_section');
 
-                            vehicle_info_form.append("label").attr("for", "car_make").attr("id", "car_make_label").text("\nVehicle Make:")
-                            vehicle_info_form.append("select").attr("id", "car_make").attr("name", "car_make");
+                            vehicle_make_section.append("label").attr("for", "car_make").attr("id", "car_make_label").text("\nVehicle Make:")
+                            vehicle_make_section.append("select").attr("id", "car_make").attr("name", "car_make");
 
                             const car_make_select = d3.select("#car_make");
 
@@ -704,8 +763,10 @@
                                 d3.select("#car_model").remove();
 
                                 if (selectedMake) {
-                                    vehicle_info_form.append("label").attr("for", "car_model").attr("id", "car_model_label").text("\nVehicle Model:")
-                                    vehicle_info_form.append("select").attr("id", "car_model").attr("name", "car_model");
+                                    const vehicle_model_section = vehicle_info_form.append('div').attr('class', 'form_section');
+
+                                    vehicle_model_section.append("label").attr("for", "car_model").attr("id", "car_model_label").text("\nVehicle Model:")
+                                    vehicle_model_section.append("select").attr("id", "car_model").attr("name", "car_model");
 
                                     const car_model_select = d3.select("#car_model");
 
@@ -724,6 +785,7 @@
                     });
 
                     // LIRR form section generation
+                    
                     lirr_form.append("label").attr("for", "lirr_station").text("Nearest LIRR Station:");
 
                     lirr_form.append("select").attr("id", "lirr_station").attr("name", "lirr_station");
@@ -740,7 +802,9 @@
                                         .text(d);
                     });
 
-                    const submit_button = form.append("button").attr("class", "specific_section").attr("type", "button").attr("id", "submit").attr("name", "submit").text("See Your Report");
+                    const submit_button_section = form.append('div').attr('class', 'form_section');
+
+                    const submit_button = submit_button_section.append("button").attr("class", "specific_section").attr("type", "button").attr("id", "submit").attr("name", "submit").text("See Your Report");
 
                     
 
