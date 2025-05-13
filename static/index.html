@@ -40,6 +40,17 @@
                 font-size: 20px;
                 font-weight: bold;
                 font-family: "Space Grotesk", sans-serif;
+                background-color: #0136a8;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+            }
+
+            form button:hover {
+                background-color: #002d87;
             }
 
             form label {
@@ -94,7 +105,7 @@
                 text-align: center;
             }
 
-            .safety .cost_header {
+            .safety .cost_header, .safety_header {
                 display: flex;
                 flex-direction: row;
                 align-items: center;
@@ -118,6 +129,10 @@
                 padding: 5px;
             }
 
+            svg text {
+                font-family: "Space Grotesk", sans-serif;
+            }
+
             .cost_component_div img {
                 height: 100px;
                 width: auto;
@@ -139,7 +154,8 @@
             }
 
             .safety .section_intro {
-                width: 600px;
+                width: 700px;
+                font-size: 20px;
             }
 
             .accident_bar_div {
@@ -156,12 +172,14 @@
             }
 
             .safety_value_boxes p {
-                font-size: 40px;
+                font-size: 30px;
             }
 
             .safety_value_boxes .safety_metric {
                 font-size: 70px;
                 font-weight: bolder;
+                margin-top: 30px;
+                margin-bottom: 30px;
             }
 
             .safety_button {
@@ -172,7 +190,33 @@
             .safety_button button {
                 font-size: 20px;
                 padding: 10px 20px;
+                font-weight: bold;
+                font-family: "Space Grotesk", sans-serif;
+                background-color: #0136a8;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
                 cursor: pointer;
+                transition: background-color 0.2s ease;
+            }
+
+            .safety_button button:hover {
+                background-color: #002d87;
+            }
+
+
+            .safety_restart_button {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                margin-top: 20px;
+                margin-bottom: 50px;
+                cursor: pointer;
+            }
+
+            .safety_restart_button img {
+                margin-right: 5px;
             }
         </style>
     </head>
@@ -444,7 +488,15 @@
 
                     let lirr_zone = lirrZones_reversed[responses['lirr_response']];
 
-                    let train_spending_monthly = Math.min(zoneToCityFares[lirr_zone]['Monthly'], zoneToCityFares[lirr_zone]['One-Way Peak']*days_per_month);
+                    let train_spending_monthly = Math.min(zoneToCityFares[lirr_zone]['Monthly'], zoneToCityFares[lirr_zone]['One-Way Peak']*days_per_month*2);
+
+                    let train_ticket_type = "";
+
+                    if (train_spending_monthly == zoneToCityFares[lirr_zone]['Monthly']) {
+                        train_ticket_type = "monthly";
+                    } else {
+                        train_ticket_type = "non-monthly (One-Way, Round-Trip, 10-Trip)";
+                    }
 
                     const subway_fare = 2.90;
 
@@ -453,6 +505,63 @@
 
                     // VISUALIZATION GENERATION
 
+                    const cost_bar_svg = safety_visualizations.append("svg")
+                                                                  .attr("id", "cost_bar")
+                                                                  .attr("width", "950")
+                                                                  .attr("height", "180");
+
+                    const barwidth = cost_bar_svg.attr("width");
+                    const barheight = cost_bar_svg.attr("height");
+                    const margin = {top: 10, right: 10, bottom: 10, left: 240};
+                    const chartWidth = barwidth - margin.left - margin.right;
+                    const chartHeight = barheight - margin.top - margin.bottom;
+
+                    const costScale = d3.scaleLinear()
+                                        .domain([0, d3.max([total_car_spend_yearly, train_cost_yearly])])
+                                        .range([0, chartWidth]);
+
+
+                    const costBarArea = cost_bar_svg.append("g")
+                                                            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+                    const driveCostBar = costBarArea.append("rect")
+                                                    .attr('x', 0)
+                                                    .attr('y', 20)
+                                                    .attr('width', costScale(total_car_spend_yearly))
+                                                    .attr('height', 50)
+                                                    .style('fill', 'red')
+                                                    .style('opacity', 0.5);
+
+                    costBarArea.append('text')
+                               .attr('x', -5)
+                               .attr('y', 45)
+                               .attr('text-anchor', 'end')
+                               .attr('dominant-baseline', 'middle')
+                               .text('Current Spending');
+
+
+                    const trainCostBar = costBarArea.append("rect")
+                                                    .attr('x', 0)
+                                                    .attr('y', 90)
+                                                    .attr('width', costScale(train_cost_yearly))
+                                                    .attr('height', 50)
+                                                    .style('fill', 'green');
+
+                    costBarArea.append('text')
+                               .attr('x', -5)
+                               .attr('y', 115)
+                               .attr('text-anchor', 'end')
+                               .attr('dominant-baseline', 'middle')
+                               .text('Potential Using Public Transit');
+
+                    costBarArea.append('line')
+                               .attr('x1', 0)
+                               .attr('x2', 0)
+                               .attr('y1', 0)
+                               .attr('y2', 160)
+                               .attr('stroke', 'black')
+                               .attr('stroke-width', 2);
+
                     // Driving commute cost
                     safety_visualizations.append("h2").text("How much does your commute currently cost?");
 
@@ -460,7 +569,7 @@
 
                     safety_visualizations.append("p").text("Driving that distance back and forth " + responses['dpw_response'] + " days per week, you are commuting " + work_distance*responses['dpw_response']*2*52 + " miles per year!");
 
-                    safety_visualizations.append("p").text("At " + gas_mileage + " MPG, your " + responses["car_year_response"] + ' ' + responses["car_make_response"] + ' ' + responses["car_model_response"] + " needs " + ((work_distance*responses['dpw_response']*2*52)/gas_mileage).toLocaleString('en-US', { maximumFractionDigits: 2 }) + " gallons of gas per year for that commute!");
+                    safety_visualizations.append("p").text("At " + gas_mileage + " MPG, your " + responses["car_year_response"] + ' ' + responses["car_make_response"] + ' ' + responses["car_model_response"] + " needs " + ((work_distance*responses['dpw_response']*2*52)/gas_mileage).toLocaleString('en-US', { maximumFractionDigits: 2 }) + " gallons of gas per year for that commute!").style("margin-bottom", "30px");
 
                     const gas_cost_div = safety_visualizations.append("div").attr("class", "cost_component_div");
                     gas_cost_div.append("img").attr("src", "images/gas-station.png").style('height', '100px').style('width', 'auto');
@@ -483,61 +592,48 @@
 
 
                     // Public Transportation Cost
-                    safety_visualizations.append("h2").text("How much could you save per year?");
+                    safety_visualizations.append("h2").text("How much could you save per year using public transportation?");
 
-                    safety_visualizations.append('h3').text('However, using public transportation, that commute could have costed you $' + train_cost_yearly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                    safety_visualizations.append("p").html("Since you commute " + responses['dpw_response'] + " days per week, your cheapest ticket option on the Long Island Rail Road (LIRR) would be a<br><strong>" + train_ticket_type + "</strong> ticket.").style('text-align', 'center').style('margin-bottom', '30px');
 
-                    const cost_bar_svg = safety_visualizations.append("svg")
-                                                                  .attr("id", "cost_bar")
-                                                                  .attr("width", "900")
-                                                                  .attr("height", "180");
+                    const lirr_cost_div = safety_visualizations.append("div").attr("class", "cost_component_div");
+                    lirr_cost_div.append('img').attr('src', 'images/train.png').style('height', '100px').style('width', 'auto');
 
-                    const barwidth = cost_bar_svg.attr("width");
-                    const barheight = cost_bar_svg.attr("height");
-                    const margin = {top: 10, right: 10, bottom: 10, left: 10};
-                    const chartWidth = barwidth - margin.left - margin.right;
-                    const chartHeight = barheight - margin.top - margin.bottom;
+                    if (train_ticket_type == "monthly") {
+                        lirr_cost_div.append('p').html("LIRR: " + train_spending_monthly + " Monthly Ticket X 12 Months<br>= <strong>$" + (train_spending_monthly*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
+                    } else {
+                        lirr_cost_div.append('p').html("LIRR: $" + zoneToCityFares[lirr_zone]['One-Way Peak']*2 + " Round-Trip Ticket X " + responses['dpw_response']*4 + " Days Per Month X 12 Months<br>= <strong>$" + (train_spending_monthly*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
+                    }
 
-                    const costScale = d3.scaleLinear()
-                                        .domain([0, d3.max([total_car_spend_yearly, train_cost_yearly])])
-                                        .range([0, chartWidth]);
+                    safety_visualizations.append("p").attr('class', 'plus_sign').text("+");
 
+                    const subway_cost_div = safety_visualizations.append("div").attr("class", "cost_component_div");
+                    subway_cost_div.append('img').attr('src', 'images/seoul-metro-logo.png').style('height', '100px').style('width', 'auto');
+                    subway_cost_div.append('p').html('Subway: $' + subway_fare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " X 2 X " + responses['dpw_response']*52 + " Days Per Year<br>= <strong>$" + (subway_fare*2*days_per_month*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
 
-                    const costBarArea = cost_bar_svg.append("g")
-                                                            .attr("transform", `translate(${margin.left}, ${margin.top})`);
-
-                    const driveCostBar = costBarArea.append("rect")
-                                                    .attr('x', 0)
-                                                    .attr('y', 20)
-                                                    .attr('width', costScale(total_car_spend_yearly))
-                                                    .attr('height', 50)
-                                                    .style('fill', 'red')
-                                                    .style('opacity', 0.5);
+                    safety_visualizations.append('h3').attr("class", "cost_final").html("= $" + train_cost_yearly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "<br>to commute using public transportation");
 
 
-                    const trainCostBar = costBarArea.append("rect")
-                                                    .attr('x', 0)
-                                                    .attr('y', 90)
-                                                    .attr('width', costScale(train_cost_yearly))
-                                                    .attr('height', 50)
-                                                    .style('fill', 'green');
+                    // Final Result
+                    if (total_car_spend_yearly < train_cost_yearly) {
+                        safety_visualizations.append('h3').text('According to our calculations, you are using the most economical transportation option! However, be aware that these calculations do not account for significant expenses such as loan/lease payments or maintenance costs. Feel free to add these to our estimate and compare again if applicable.')
+                    } else {
+                        safety_visualizations.append('h3').text('According to our calculations, you could be saving $' + (total_car_spend_yearly-train_cost_yearly).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' per year using public transportation! Also note that these calculations do not account for significant expenses such as loan/lease payments or maintenance costs. Feel free to add these to our estimate and compare again if applicable.').style("width", "700px")
+                    }
 
-                    costBarArea.append('line')
-                               .attr('x1', 0)
-                               .attr('x2', 0)
-                               .attr('y1', 0)
-                               .attr('y2', 160)
-                               .attr('stroke', 'black')
-                               .attr('stroke-width', 2);
+                    safety_visualizations.append('p').text("")
 
 
+                    const restart_button_div = safety_visualizations.append('div').attr('class', 'safety_restart_button')
+                                                                              .attr("id", "restart")
+                                                                              .attr("name", "restart")
+                                                                              .on("click", function () {
+                                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                                generate_form();
+                                                                              });
 
-                    console.log(costScale);
-
-                    const restart_button = safety_visualizations.append("button").attr("class", "specific_section").attr("type", "button").attr("id", "restart").attr("name", "restart").text("Restart").on("click", function () {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        generate_form();
-                    });
+                    restart_button_div.append('img').attr('src', 'images/restart.png').attr('height', '12px');
+                    restart_button_div.append('text').text('Restart');
                 }
 
                 function safety_section (responses) {
@@ -552,7 +648,11 @@
                     // Clear out in case user is redoing the form
                     safety_visualizations.html("");
 
-                    safety_visualizations.append("h1").text("Section 1: Safety");
+                    const safety_header = safety_visualizations.append('div').attr('class', 'safety_header');
+
+                    safety_header.append('img').attr('src', 'images/collision.png').style('height', '38px');
+                    safety_header.append("h1").text("Section 1: Safety");
+                    safety_header.append('img').attr('src', 'images/collision.png').style('height', '38px');
 
                     safety_visualizations.append("p").attr('class', 'section_intro').text("While hopping in the car every morning probably feels like routine, it is important to remember that taking a drive is taking a risk. Car accidents happen every day during your commute, and you aren't immune to them. Take a look:")
 
@@ -563,12 +663,12 @@
 
                     const accident_bar_svg = accident_bar_div.append("svg")
                                                                   .attr("id", "accident_bar")
-                                                                  .attr("width", "900")
-                                                                  .attr("height", "500");
+                                                                  .attr("width", "1000")
+                                                                  .attr("height", "550");
 
                     const barwidth = accident_bar_svg.attr("width");
                     const barheight = accident_bar_svg.attr("height");
-                    const margin = {top: 10, right: 15, bottom: 30, left: 50};
+                    const margin = {top: 10, right: 15, bottom: 60, left: 80};
                     const chartWidth = barwidth - margin.left - margin.right;
                     const chartHeight = barheight - margin.top - margin.bottom;
 
@@ -594,7 +694,26 @@
                     accident_bar_svg.append("g")
                         .attr("class", "x axis")
                         .attr("transform",`translate(${margin.left},${chartHeight+margin.top})`)
-                        .call(d3.axisBottom(timeScale).tickFormat(d => `${d}:00`));
+                        .call(d3.axisBottom(timeScale)
+                                .tickValues(d3.range(0, 24))
+                                .tickFormat(d => {
+                                    const hour = d % 12 === 0 ? 12 : d % 12;
+                                    const ampm = d < 12 ? "AM" : "PM";
+                                    return `${hour} ${ampm}`;
+                                }));
+
+                    accident_bar_svg.append('text')
+                                    .attr('x', (chartWidth/2)+margin.left)
+                                    .attr('y', chartHeight+margin.top+40)
+                                    .attr('text-anchor', 'middle')
+                                    .text('Time of Day');
+
+                    accident_bar_svg.append('text')
+                                    .attr('transform', `rotate(-90)`)
+                                    .attr('x', -((chartHeight + margin.top) / 2))
+                                    .attr('y', 25)
+                                    .attr('text-anchor', 'middle')
+                                    .text('# Accidents in 2024');
 
                     accident_bar_svg.append("g")
                         .attr("transform",`translate(${margin.left},${margin.top})`)
@@ -651,7 +770,7 @@
                     safetyValueBoxes.append('p').attr("class", "safety_metric").text(percentage_overlap.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })+"%");
                     safetyValueBoxes.append('p').text("of all accidents in NYC.");
 
-
+                    safety_visualizations.append('p').text('As you reassess your commuting options, think about these statistics and how they could affect you any given day. Is a slightly faster commute worth it?').style('width', '700px').style('font-size', '20px');
 
                     // Paragraph explaining general safety stuff
 
@@ -662,15 +781,16 @@
                                             cost_section(responses);
                                          });
 
-                    const restart_button = safety_visualizations.append('div').attr('class', 'safety_button').append("button")
-                                                                              .attr("type", "button")
+                    const restart_button_div = safety_visualizations.append('div').attr('class', 'safety_restart_button')
                                                                               .attr("id", "restart")
                                                                               .attr("name", "restart")
-                                                                              .text("Restart")
                                                                               .on("click", function () {
                                                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                                                                 generate_form();
                                                                               });
+
+                    restart_button_div.append('img').attr('src', 'images/restart.png').attr('height', '12px');
+                    restart_button_div.append('text').text('Restart');
                 }
 
 
