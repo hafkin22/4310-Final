@@ -600,7 +600,7 @@
                     lirr_cost_div.append('img').attr('src', 'images/train.png').style('height', '100px').style('width', 'auto');
 
                     if (train_ticket_type == "monthly") {
-                        lirr_cost_div.append('p').html("LIRR: " + train_spending_monthly + " Monthly Ticket X 12 Months<br>= <strong>$" + (train_spending_monthly*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
+                        lirr_cost_div.append('p').html("LIRR: $" + train_spending_monthly + " Monthly Ticket X 12 Months<br>= <strong>$" + (train_spending_monthly*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
                     } else {
                         lirr_cost_div.append('p').html("LIRR: $" + zoneToCityFares[lirr_zone]['One-Way Peak']*2 + " Round-Trip Ticket X " + responses['dpw_response']*4 + " Days Per Month X 12 Months<br>= <strong>$" + (train_spending_monthly*12).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</strong>");
                     }
